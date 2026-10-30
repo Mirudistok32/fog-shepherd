@@ -75,6 +75,7 @@
 | Формат хранилища и копии | `docs/save-format.md` |
 | Почему сделано так | `docs/decisions.md` |
 | Проверка баланса живыми игроками | `docs/playtest.md` |
+| Обязательные рекомендации (OWASP, WCAG…) | `../agent-base/docs/principles.md` → «Стандарты» |
 
 ## Нельзя
 
