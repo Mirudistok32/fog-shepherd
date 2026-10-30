@@ -1,0 +1,51 @@
+# Публикация на GitHub Pages при каждом пуше в main или master (и вручную из вкладки Actions).
+# Один раз в репозитории: Settings → Pages → Build and deployment → Source: GitHub Actions.
+# Пути относительные, поэтому имя репозитория и свой домен настроек не требуют: адрес для
+# метатегов сборка берёт из configure-pages.
+name: Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Одна публикация за раз; идущую не прерываем, чтобы сайт не остался полувыложенным.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Сначала те же проверки, что локально: сломанный сайт не публикуется.
+      - run: npm run check
+      - id: pages
+        uses: actions/configure-pages@v5
+      - run: npm run build
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

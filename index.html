@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Пастух в тумане — пиксельная игра в браузере</title>
+    <meta
+      name="description"
+      content="Пиксельная игра: утро, туман, стадо разбрелось по лугу. Собака загоняет овец в загон до рассвета. Двенадцать уровней, четыре времени года, рекорды и ачивки. Играется в браузере, с телефона и с диска."
+    />
+    <link rel="canonical" href="__SITE_URL__" />
+    <meta name="theme-color" content="#121820" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Пастух в тумане — пиксельная игра" />
+    <meta
+      property="og:description"
+      content="Загоните стадо в загон до рассвета: в тумане видно только вокруг собаки, отбившиеся овцы блеют и уходят в лес."
+    />
+    <meta property="og:url" content="__SITE_URL__" />
+    <meta property="og:image" content="__SITE_URL__og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='9' height='7' fill='%23f4f0e6'/%3E%3Crect x='2' y='5' width='11' height='5' fill='%23f4f0e6'/%3E%3Crect x='12' y='5' width='3' height='4' fill='%233b3433'/%3E%3Crect x='4' y='11' width='1' height='2' fill='%232e2725'/%3E%3Crect x='10' y='11' width='1' height='2' fill='%232e2725'/%3E%3C/svg%3E"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Пастух в тумане",
+        "description": "Пиксельная игра на canvas: собака загоняет разбредшееся в тумане стадо в загон до рассвета.",
+        "url": "__SITE_URL__",
+        "inLanguage": "ru",
+        "genre": "Arcade",
+        "gamePlatform": "Web browser",
+        "playMode": "SinglePlayer",
+        "applicationCategory": "Game",
+        "author": {
+          "@type": "Person",
+          "name": "Станислав Постников",
+          "url": "https://mirudistok32.github.io/portfolio/"
+        }
+      }
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <div class="stage" id="stage" tabindex="-1">
+        <canvas
+          id="scene"
+          width="384"
+          height="216"
+          role="img"
+          aria-label="Пиксельный луг в тумане: собака, овцы и загон с фонарём у деревни"
+        ></canvas>
+
+        <div class="hud" id="hud" hidden>
+          <div class="hud-chip hud-time" id="hud-time">
+            <span class="sun-icon" aria-hidden="true"></span>
+            <span class="hud-label">До рассвета</span> <b id="hud-time-left">2:00</b>
+            <span class="hud-bar" aria-hidden="true"
+              ><span class="hud-fill" id="hud-time-fill"></span
+            ></span>
+          </div>
+          <div class="hud-chip hud-sheep" id="hud-sheep">
+            <span class="sheep-icon" aria-hidden="true"></span>
+            <span class="hud-label">В загоне</span> <b id="hud-penned">0 / 0</b>
+          </div>
+          <div class="hud-chip hud-lost" id="hud-lost" hidden>
+            <span class="hud-label">В лесу</span> <b id="hud-lost-count">0</b>
+          </div>
+          <button class="icon-btn" type="button" data-action="pause" aria-label="Пауза (Esc)">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="4" y="3" width="3" height="10" />
+              <rect x="9" y="3" width="3" height="10" />
+            </svg>
+          </button>
+        </div>
+        <button
+          class="whistle-btn"
+          id="btn-whistle"
+          type="button"
+          data-action="whistle"
+          aria-label="Свист (пробел)"
+          hidden
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 7h7a3 3 0 1 1-3 3H4a2 2 0 0 1-2-2z" />
+            <rect x="9" y="5" width="5" height="2" />
+            <rect x="12" y="2" width="1" height="2" />
+            <rect x="14" y="3" width="1" height="1" />
+          </svg>
+          <span>Свист</span>
+        </button>
+        <p class="tip" id="coach" hidden></p>
+        <p class="hint" id="hint" hidden>
+          Ведите собаку мышью или пальцем по лугу, стрелками или WASD — овцы уходят от неё.
+          <span class="hint-more">Пробел или «Свист» — овцы рядом сбиваются в кучу.</span>
+        </p>
+      </div>
+      <p class="rotate-tip" id="rotate-tip">Поверните телефон — луг будет виден целиком.</p>
+      <canvas
+        class="minimap"
+        id="minimap"
+        width="192"
+        height="108"
+        aria-hidden="true"
+        title="Мини-карта: коснитесь, чтобы послать собаку туда"
+        hidden
+      ></canvas>
+    </div>
+
+    <section class="screen screen-menu" id="screen-menu" aria-labelledby="menu-title">
+      <div class="card">
+        <p class="eyebrow">Пиксельная игра</p>
+        <h1 id="menu-title" tabindex="-1">Пастух в тумане</h1>
+        <p class="lead">
+          Утро, туман, стадо разбрелось по лугу. Соберите всех овец в загон, пока не рассвело.
+        </p>
+        <fieldset class="levels">
+          <legend>Уровень</legend>
+          <div class="level-list" id="level-list"></div>
+          <p class="level-note" id="level-note">Тренировка: три овцы у самого загона.</p>
+        </fieldset>
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="start" id="btn-start">
+            Играть
+          </button>
+          <button class="btn" type="button" data-action="daily" id="btn-daily">Задание дня</button>
+          <button class="btn" type="button" data-action="help">Как играть</button>
+          <button class="btn" type="button" data-action="achievements">
+            Ачивки <span class="badge" id="ach-count">0 из 9</span>
+          </button>
+        </div>
+        <div class="seed-note" id="seed-note" hidden>
+          <p id="seed-text"></p>
+          <div class="settings">
+            <button class="btn small" type="button" data-action="copy-link">
+              Скопировать ссылку
+            </button>
+            <a class="btn small" id="link-campaign" href="?">К кампании</a>
+          </div>
+        </div>
+        <div class="seed-note" id="playtest-note" hidden>
+          <p id="playtest-text">
+            Режим плейтеста: каждая попытка записывается. Сыграйте, как играется, а потом пришлите
+            отчёт автору.
+          </p>
+          <div class="settings">
+            <button class="btn small" type="button" data-action="copy-report">
+              Скопировать отчёт
+            </button>
+          </div>
+        </div>
+        <p class="notice" id="copy-message" role="status" hidden></p>
+        <textarea
+          class="copy-box"
+          id="copy-box"
+          readonly
+          rows="5"
+          aria-label="Текст для копирования"
+          hidden
+        ></textarea>
+        <div class="settings">
+          <button
+            class="btn small"
+            type="button"
+            data-action="sound"
+            id="btn-sound"
+            aria-pressed="true"
+          >
+            Звук: включён
+          </button>
+          <button class="btn small" type="button" data-action="theme" id="btn-theme">
+            Тема: как в системе
+          </button>
+        </div>
+        <p class="notice" id="save-notice" role="status" hidden></p>
+        <p class="credit">
+          Игра из портфолио
+          <a href="https://mirudistok32.github.io/portfolio/">Станислава Постникова</a> ·
+          <a href="https://t.me/postnikov_st">Telegram</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-help" aria-labelledby="help-title" hidden>
+      <div class="card">
+        <h2 id="help-title" tabindex="-1">Как играть</h2>
+        <p class="lead">
+          Ночью стадо разбрелось по лугу. Загоните всех овец в загон с фонарём, пока не взошло
+          солнце. Овцы боятся собаки и уходят от неё — заходите сзади и гоните к воротам.
+        </p>
+
+        <h3>Управление</h3>
+        <dl class="controls">
+          <dt>Мышь или палец</dt>
+          <dd>Собака бежит туда, где курсор или палец. Ближе к собаке — бежит медленнее.</dd>
+          <dt>Стрелки или WASD</dt>
+          <dd>Собака бежит в эту сторону, пока клавиша нажата.</dd>
+          <dt>Пробел или кнопка «Свист»</dt>
+          <dd>
+            Овцы рядом с собакой сбиваются в кучу и ненадолго успокаиваются. Свистнуть снова можно
+            через четыре секунды.
+          </dd>
+        </dl>
+
+        <h3>Стадо</h3>
+        <ul class="rules">
+          <li>
+            Спокойные овцы щиплют траву и держатся вместе. Испуганные бегут прочь от собаки и
+            тянутся друг за другом. Бегущая собака пугает сильнее идущей — не налетайте на стадо,
+            иначе оно разбежится.
+          </li>
+          <li>
+            Через заборы, кусты и ручей овцы не ходят — только в обход и по мостику. Собака
+            перепрыгивает заборы и переплывает ручей.
+          </li>
+          <li>
+            Отбившаяся овца бредёт к лесу. Ушла в лес — у вас несколько секунд, чтобы её вернуть,
+            иначе она потеряется.
+          </li>
+        </ul>
+
+        <h3>Туман</h3>
+        <p>
+          Видно только вокруг собаки и у загона — там горит фонарь. Овец вдалеке выдают тёмные
+          силуэты и круги блеяния; жёлтые круги — у тех, кто отбился. К рассвету туман редеет. На
+          узком экране под лугом есть мини-карта: коснитесь её, чтобы послать собаку туда.
+        </p>
+
+        <h3>Задание дня</h3>
+        <p>
+          Каждый день — новая раскладка, одна на всех. Пройдите её и отправьте итог другу: по ссылке
+          откроется то же самое поле. В рекорды и ачивки задание дня не идёт.
+        </p>
+
+        <h3>Звёзды</h3>
+        <p>
+          ★ — две трети стада в загоне, ★★ — всё стадо, ★★★ — всё стадо быстрее норматива. Звезда
+          открывает следующий уровень. Чем дальше, тем больше овец, гуще туман и меньше запас
+          времени.
+        </p>
+        <p class="muted">Пауза — Esc, P или кнопка в правом верхнем углу. Звук — M.</p>
+
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="start">Играть</button>
+          <button class="btn" type="button" data-action="menu">В меню</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-achievements" aria-labelledby="ach-title" hidden>
+      <div class="card">
+        <h2 id="ach-title" tabindex="-1">Ачивки</h2>
+        <ul class="ach-list" id="ach-list"></ul>
+        <div class="backup">
+          <h3>Резервная копия</h3>
+          <p class="muted">
+            Рекорды и ачивки хранятся только в этом браузере. Копию можно скачать и загрузить в
+            другом браузере: она объединится с тем, что уже есть.
+          </p>
+          <div class="actions">
+            <button class="btn small" type="button" data-action="export">Скачать копию</button>
+            <label class="btn small file-btn">
+              Загрузить копию
+              <input type="file" id="import-file" accept="application/json,.json" />
+            </label>
+          </div>
+          <p class="notice" id="backup-message" role="status" hidden></p>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" data-action="menu">В меню</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-paused" aria-labelledby="paused-title" hidden>
+      <div class="card card-narrow">
+        <h2 id="paused-title" tabindex="-1">Пауза</h2>
+        <div class="actions actions-column">
+          <button class="btn primary" type="button" data-action="resume">Продолжить</button>
+          <button class="btn" type="button" data-action="restart">Начать заново</button>
+          <button
+            class="btn"
+            type="button"
+            data-action="sound"
+            id="btn-sound-pause"
+            aria-pressed="true"
+          >
+            Звук: включён
+          </button>
+          <button class="btn" type="button" data-action="menu">В меню</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-result" aria-labelledby="result-title" hidden>
+      <div class="card">
+        <p class="eyebrow" id="result-level">Уровень 1 · весна</p>
+        <h2 id="result-title" tabindex="-1">Все дома</h2>
+        <p class="stars" id="result-stars" role="img" aria-label="0 звёзд из 3"></p>
+        <p class="record" id="result-record" hidden>Новый рекорд уровня</p>
+        <p id="result-text"></p>
+        <dl class="stats" id="result-stats"></dl>
+        <div class="unlocked" id="result-unlocked" hidden>
+          <h3>Новые ачивки</h3>
+          <ul class="ach-list" id="result-unlocked-list"></ul>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="next" id="btn-next">
+            Следующий уровень
+          </button>
+          <button class="btn" type="button" data-action="restart" id="btn-again">Ещё раз</button>
+          <button class="btn" type="button" data-action="share" id="btn-share" hidden>
+            Поделиться итогом
+          </button>
+          <button class="btn" type="button" data-action="copy-report" id="btn-report" hidden>
+            Скопировать отчёт
+          </button>
+          <button class="btn" type="button" data-action="menu">В меню</button>
+        </div>
+        <p class="notice" id="share-message" role="status" hidden></p>
+        <textarea
+          class="copy-box"
+          id="share-box"
+          readonly
+          rows="4"
+          aria-label="Текст для копирования"
+          hidden
+        ></textarea>
+        <p class="credit">
+          Понравилось? Напишите автору в
+          <a href="https://t.me/postnikov_st">Telegram</a> или загляните в
+          <a href="https://mirudistok32.github.io/portfolio/">портфолио</a>.
+        </p>
+      </div>
+    </section>
+
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+    <p class="sr-only" id="announcer" aria-live="assertive"></p>
+    <noscript><p class="noscript">Для игры нужен JavaScript.</p></noscript>
+  </body>
+</html>

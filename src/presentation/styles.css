@@ -1,0 +1,970 @@
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('../assets/fonts/Ubuntu-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('../assets/fonts/Roboto.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tektur';
+  src: url('../assets/fonts/Tektur.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+/* Светлая тема — утренний туман над лугом; тёмная — ночной луг и рассветное золото. */
+:root {
+  --bg: #e2e7e4;
+  --surface: #f7f9f7;
+  --surface-2: #eaefec;
+  --line: #c0ccc6;
+  --text: #1e2a2a;
+  --text-dim: #4c5b5a;
+  --accent: #2f6146;
+  --on-accent: #ffffff;
+  --accent-shadow: #1f4130;
+  --danger: #a8362d;
+  --focus: #2f6146;
+  --star: #a8700c;
+  --hud-bg: #121820;
+  --hud-text: #f2eee6;
+  --hud-dim: #c9c4ba;
+  --night: #8fb8dc;
+  --dawn: #f2c14e;
+  --overlay: rgba(18, 24, 32, 0.3);
+  --spring: #6fa34a;
+  --summer: #e0b43c;
+  --autumn: #d9762b;
+  --winter: #7fa6c6;
+
+  --font-head: 'Ubuntu', system-ui, sans-serif;
+  --font-text: 'Roboto', system-ui, sans-serif;
+  --font-accent: 'Tektur', 'Roboto', system-ui, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #10151c;
+    --surface: #1a222c;
+    --surface-2: #232d39;
+    --line: #354252;
+    --text: #eef1ef;
+    --text-dim: #b6c0c4;
+    --accent: #f0b45a;
+    --on-accent: #1e1a14;
+    --accent-shadow: #9a6b24;
+    --danger: #f08a7e;
+    --focus: #f0b45a;
+    --star: #f2c14e;
+    --overlay: rgba(6, 9, 14, 0.42);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #10151c;
+  --surface: #1a222c;
+  --surface-2: #232d39;
+  --line: #354252;
+  --text: #eef1ef;
+  --text-dim: #b6c0c4;
+  --accent: #f0b45a;
+  --on-accent: #1e1a14;
+  --accent-shadow: #9a6b24;
+  --danger: #f08a7e;
+  --focus: #f0b45a;
+  --star: #f2c14e;
+  --overlay: rgba(6, 9, 14, 0.42);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.5 var(--font-text);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Заголовок получает фокус программно при смене экрана — рамка ему не нужна. */
+[tabindex='-1']:focus-visible {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- сцена ---------- */
+
+.app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
+  outline: none;
+}
+
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.rotate-tip {
+  display: none;
+  margin: 0;
+  padding: 0 16px;
+  color: var(--text-dim);
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (orientation: portrait) and (max-width: 760px) and (min-height: 760px) {
+  .rotate-tip {
+    display: block;
+  }
+}
+
+/* Мини-карта: под лугом или, если места нет, в его углу. Размер и место задаёт fitStage. */
+.minimap {
+  position: fixed;
+  z-index: 1;
+  display: block;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: var(--hud-bg);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.minimap.waiting {
+  visibility: hidden;
+}
+
+/* ---------- HUD ---------- */
+
+.hud {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hud-bg) 82%, transparent);
+  color: var(--hud-text);
+  font: 500 14px/1 var(--font-accent);
+  white-space: nowrap;
+}
+
+.hud-label {
+  color: var(--hud-dim);
+}
+
+.hud-chip b {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-bar {
+  position: relative;
+  width: 48px;
+  height: 8px;
+  background: #34405a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, var(--night), var(--dawn));
+}
+
+.hud-time.late b {
+  color: var(--dawn);
+}
+
+.hud-lost b {
+  color: #f0a24b;
+}
+
+/* Солнце и овца — маленькие пиксельные значки из CSS, без файлов. */
+.sun-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--dawn);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dawn) 35%, transparent);
+}
+
+.sheep-icon {
+  position: relative;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  background: #f4f0e6;
+}
+
+.sheep-icon::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: #3b3433;
+}
+
+.icon-btn {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hud-bg) 82%, transparent);
+  color: var(--hud-text);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Свист: большая кнопка под большой палец; пока не готов, заполняется по кругу. */
+.whistle-btn {
+  --cd: 0;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0 14px;
+  border: 2px solid color-mix(in srgb, var(--hud-text) 30%, transparent);
+  border-radius: 28px;
+  background:
+    conic-gradient(
+      color-mix(in srgb, var(--hud-bg) 55%, transparent) calc(var(--cd) * 360deg),
+      transparent 0
+    ),
+    color-mix(in srgb, var(--hud-bg) 82%, transparent);
+  color: var(--hud-text);
+  font: 700 15px/1 var(--font-head);
+  cursor: pointer;
+}
+
+.whistle-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.whistle-btn[aria-disabled='true'] {
+  color: var(--hud-dim);
+}
+
+/* Подсказка на первых уровнях: в левом нижнем углу луга, справа там кнопка свиста. */
+.tip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: max-content;
+  max-width: min(calc(100% - 140px), 34rem);
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--dawn);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hud-bg) 88%, transparent);
+  color: var(--hud-text);
+  font: 500 14px/1.3 var(--font-accent);
+  pointer-events: none;
+  animation: toast-in 0.2s ease-out;
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--hud-bg) 85%, transparent);
+  color: var(--hud-text);
+  font: 500 15px/1.35 var(--font-accent);
+  text-align: center;
+  pointer-events: none;
+}
+
+.hint-more {
+  display: block;
+  margin-top: 2px;
+  color: var(--hud-dim);
+}
+
+/* ---------- экраны ---------- */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow-y: auto;
+  background: var(--overlay);
+}
+
+/* В меню демо-полёт виден справа от карточки. */
+@media (min-width: 900px) and (orientation: landscape) {
+  .screen-menu {
+    place-items: center start;
+    padding-left: max(5vw, 16px);
+    background: linear-gradient(90deg, var(--overlay), transparent 60%);
+  }
+}
+
+.card {
+  width: 100%;
+  max-width: 30rem;
+  margin: auto 0;
+  padding: 20px;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+
+.card-narrow {
+  max-width: 22rem;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--text-dim);
+  font: 500 14px/1.3 var(--font-accent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-head);
+  font-weight: 700;
+  line-height: 1.15;
+  outline: none;
+}
+
+h1 {
+  font-size: clamp(28px, 6vw, 36px);
+}
+
+h2 {
+  font-size: 26px;
+}
+
+h3 {
+  margin-top: 16px;
+  font-size: 18px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+.lead {
+  color: var(--text-dim);
+}
+
+.muted {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.levels {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.levels legend {
+  margin-bottom: 6px;
+  font: 700 15px/1.3 var(--font-head);
+}
+
+.level-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.level {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 4px 2px;
+  border: 2px solid var(--line);
+  border-top: 4px solid var(--season, var(--line));
+  border-radius: 4px;
+  background: var(--surface-2);
+  font: 700 16px/1 var(--font-accent);
+  cursor: pointer;
+}
+
+.level[data-season='spring'] {
+  --season: var(--spring);
+}
+.level[data-season='summer'] {
+  --season: var(--summer);
+}
+.level[data-season='autumn'] {
+  --season: var(--autumn);
+}
+.level[data-season='winter'] {
+  --season: var(--winter);
+}
+
+.level.training {
+  grid-column: 1 / -1;
+  grid-auto-flow: column;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.level input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.level-stars {
+  color: var(--star);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.level:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.level:has(input:checked) .level-stars {
+  color: var(--on-accent);
+}
+
+.level:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.level.locked {
+  color: var(--text-dim);
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.level.locked input {
+  cursor: not-allowed;
+}
+
+.level-lock {
+  font-size: 12px;
+}
+
+.level-note {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.stars {
+  margin: 4px 0 8px;
+  color: var(--star);
+  font: 700 34px/1 var(--font-accent);
+  letter-spacing: 4px;
+}
+
+.stars .off {
+  color: var(--line);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.actions-column {
+  flex-direction: column;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 3px 0 var(--line);
+  font: 700 16px/1 var(--font-head);
+  cursor: pointer;
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.btn.primary {
+  border-color: var(--accent-shadow);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 3px 0 var(--accent-shadow);
+}
+
+.btn.small {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.badge {
+  font: 500 14px/1 var(--font-accent);
+  opacity: 0.85;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.file-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-btn input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-btn:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.notice {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--accent);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+
+.notice.error {
+  border-left-color: var(--danger);
+}
+
+.seed-note {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--accent);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+
+.seed-note p {
+  margin: 0 0 8px;
+}
+
+.seed-note a.btn {
+  text-decoration: none;
+}
+
+.seed-note .btn.small {
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+/* Буфер обмена недоступен: текст можно выделить и скопировать вручную. */
+.copy-box {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 8px;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: 400 13px/1.35 var(--font-text);
+  resize: vertical;
+}
+
+.credit {
+  margin: 16px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.rules {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+/* Управление: «что сделать» → «что будет». */
+.controls {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.controls dt {
+  font: 500 14px/1.3 var(--font-accent);
+  color: var(--text-dim);
+}
+
+.controls dd {
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-left: 4px solid var(--accent);
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+.rules li {
+  margin-bottom: 8px;
+}
+
+.ach-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ach {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.ach-mark {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 2px dashed var(--line);
+  font: 700 14px/1 var(--font-accent);
+  color: var(--text-dim);
+}
+
+.ach.open .ach-mark {
+  border: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.ach-title {
+  font: 700 15px/1.25 var(--font-head);
+}
+
+.ach-desc {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.backup {
+  margin-top: 8px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 6px;
+  margin: 8px 0;
+}
+
+.stats dt {
+  color: var(--text-dim);
+}
+
+.stats dd {
+  margin: 0;
+  padding-left: 16px;
+  font: 500 15px/1.5 var(--font-accent);
+  text-align: right;
+}
+
+.stats .total {
+  padding-top: 6px;
+  border-top: 2px solid var(--line);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.record {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 14px/1.3 var(--font-accent);
+}
+
+/* Телефон вертикально: HUD — над лугом, свист — под ним, луг ничем не закрыт. */
+@media (orientation: portrait) and (max-width: 760px) {
+  .app {
+    padding-top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+    padding-bottom: calc(max(20px, env(safe-area-inset-bottom)) + 72px);
+  }
+
+  .tip {
+    max-width: calc(100% - 16px);
+  }
+
+  .hud {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    left: 10px;
+    right: 10px;
+  }
+
+  .whistle-btn {
+    position: fixed;
+    right: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    transform: translateX(50%);
+    min-height: 64px;
+    padding: 0 28px;
+    font-size: 17px;
+  }
+}
+
+/* Узкий экран: подписи в HUD прячутся, остаются значки и числа — всё в одну строку. */
+@media (max-width: 420px) {
+  .hud-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .hud-chip {
+    padding: 4px 10px;
+    font-size: 16px;
+  }
+}
+
+/* Невысокий экран (телефон боком): меню в две колонки, чтобы всё влезло без прокрутки. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .card {
+    padding: 14px 18px;
+  }
+
+  .screen-menu,
+  .screen-menu.screen {
+    place-items: center;
+    padding-left: max(16px, env(safe-area-inset-left));
+    background: var(--overlay);
+  }
+
+  .screen-menu .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    column-gap: 20px;
+    align-items: start;
+    max-width: 48rem;
+  }
+
+  .screen-menu .card > * {
+    grid-column: 1;
+  }
+
+  .screen-menu .levels {
+    grid-column: 2;
+    grid-row: 1 / span 8;
+    margin: 0;
+  }
+
+  .screen-menu h1 {
+    font-size: 26px;
+  }
+
+  .screen-menu .lead {
+    font-size: 15px;
+  }
+
+  /* Четыре кнопки — в две строки, как и раньше: иначе меню не влезает без прокрутки. */
+  .screen-menu .actions {
+    gap: 6px;
+    margin: 8px 0;
+  }
+
+  .screen-menu .actions .btn {
+    padding: 0 10px;
+    font-size: 15px;
+  }
+
+  .level {
+    min-height: 42px;
+  }
+
+  .level.training {
+    min-height: 36px;
+  }
+}
+
+/* ---------- всплывашки ---------- */
+
+.toasts {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+
+.toast {
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  font: 500 14px/1.3 var(--font-accent);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.noscript {
+  position: fixed;
+  inset: auto 16px 16px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
